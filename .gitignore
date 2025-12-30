@@ -48,3 +48,8 @@ next-env.d.ts
 *.sqlite
 *.sqlite-journal
 migration_lock.toml
+
+server.log
+
+coverage_full.txt
+coverage_report.txt
