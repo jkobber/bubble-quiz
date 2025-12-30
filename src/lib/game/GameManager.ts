@@ -9,8 +9,9 @@ export class GameManager {
   private rooms: Map<string, RoomState> = new Map();
 
   createRoom(code: string, hostToken: string): RoomState {
+    const normalizedCode = code.toUpperCase();
     const room: RoomState = {
-      code,
+      code: normalizedCode,
       hostToken,
       createdAt: Date.now(),
       lastActivity: Date.now(),
@@ -29,16 +30,23 @@ export class GameManager {
         simultaneousJokers: false, // Default: One joker per round
       },
     };
-    this.rooms.set(code, room);
+    this.rooms.set(normalizedCode, room);
     return room;
   }
 
   getRoom(code: string): RoomState | undefined {
-    return this.rooms.get(code);
+    if (!code) return undefined;
+    return this.rooms.get(code.toUpperCase());
   }
 
   deleteRoom(code: string) {
-    this.rooms.delete(code);
+    if (!code) return;
+    const normalizedCode = code.toUpperCase();
+    const room = this.rooms.get(normalizedCode);
+    if (room) {
+      room.phase = "finished"; // Signal loop to stop
+      this.rooms.delete(normalizedCode);
+    }
   }
 
   getPublicRooms() {

@@ -217,7 +217,8 @@ export function registerHandlers(io: Server, socket: Socket, gameManager: GameMa
     }
   });
 
-  socket.on("delete_room", ({ code }) => {
+  socket.on("delete_room", (data) => {
+    const code = typeof data === "string" ? data : data.code;
     const room = gameManager.getRoom(code);
     const player = Object.values(room?.players || {}).find(
       (p) => p.socketId === socket.id
@@ -226,6 +227,14 @@ export function registerHandlers(io: Server, socket: Socket, gameManager: GameMa
     if (room && player && room.hostToken === player.token) {
       gameManager.deleteRoom(code);
       io.to(code).emit("room:deleted");
+      // Redundant emit to sender to ensure they get redirected even if socket room logic fails
+      socket.emit("room:deleted");
+    } else {
+      socket.emit("error", "Failed to delete room: Unauthorized or room not found");
+      // If room not found, we might want to tell them it's deleted anyway so they leave
+      if (!room) {
+         socket.emit("room:deleted");
+      }
     }
   });
 
