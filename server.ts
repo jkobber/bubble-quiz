@@ -45,6 +45,7 @@ app.prepare().then(() => {
     if (req.url === "/api/lobbies" && req.method === "GET") {
       const rooms = gameManager.getPublicRooms();
       res.setHeader("Content-Type", "application/json");
+      res.setHeader("Cache-Control", "no-store, max-age=0");
       res.end(JSON.stringify(rooms));
       return;
     }

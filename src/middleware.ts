@@ -1,12 +1,15 @@
 import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import createMiddleware from "next-intl/middleware";
 import { routing } from "./i18n/routing";
 
 const intlMiddleware = createMiddleware(routing);
 
-export default auth((req) => {
-  const isAuth = !!req.auth;
+export default async function middleware(req: NextRequest) {
+  const session = await auth();
+  const isAuth = !!session?.user;
+  (req as any).auth = session; // Polyfill for existing logic validation
+
   const isPregameRoute = req.nextUrl.pathname.includes("/pregame");
   const isAdminRoute = req.nextUrl.pathname.includes("/admin");
   const isOnboardingRoute = req.nextUrl.pathname.includes("/onboarding");
@@ -30,22 +33,12 @@ export default auth((req) => {
       url.protocol = forwardedProto;
     }
 
-    // Debug log to help troubleshoot tunnel issues
-    if (!forwardedHost) {
-      console.log("[Middleware] Redirecting to:", url.toString());
-      console.log("[Middleware] Headers:", {
-        host: req.headers.get("host"),
-        xForwardedHost: req.headers.get("x-forwarded-host"),
-        xOriginalHost: req.headers.get("x-original-host"),
-      });
-    }
-
     return url;
   };
 
   // Redirect logged-in users away from auth pages
   if (isAuth) {
-    const user = req.auth?.user as any;
+    const user = (req as any).auth?.user;
     if (isRegisterRoute || (isOnboardingRoute && user?.username)) {
       return NextResponse.redirect(getRedirectUrl("/lobby"));
     }
@@ -59,19 +52,17 @@ export default auth((req) => {
   }
 
   if (isAdminRoute) {
-    if (!isAuth) {
-      const signInUrl = getRedirectUrl("/api/auth/signin");
-      signInUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
-      return NextResponse.redirect(signInUrl);
-    }
-    if (req.auth?.user?.role !== "ADMIN") {
-      return NextResponse.redirect(getRedirectUrl("/"));
+    if (!isAuth || (req as any).auth?.user?.role !== "ADMIN") {
+      // Rewrite to 404 to hide the route existence
+      const url = req.nextUrl.clone();
+      url.pathname = "/404";
+      return NextResponse.rewrite(url);
     }
   }
 
   // 2. Onboarding Check
   if (isAuth && !isOnboardingRoute && !isApiAuthRoute && !isRegisterRoute) {
-    const user = req.auth?.user as any;
+    const user = (req as any).auth?.user;
     // Note: user.username comes from JWT callback in auth.ts
     if (!user?.username) {
       return NextResponse.redirect(getRedirectUrl("/onboarding"));
@@ -80,7 +71,7 @@ export default auth((req) => {
 
   // 3. Intl Middleware
   return intlMiddleware(req);
-});
+}
 
 export const config = {
   // Match all pathnames except for

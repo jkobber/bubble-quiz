@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 const { intlMiddlewareMock, authMock } = vi.hoisted(() => {
   return {
     intlMiddlewareMock: vi.fn((req) => NextResponse.next()),
-    authMock: vi.fn((cb) => (req: any) => cb(req)),
+    authMock: vi.fn(),
   };
 });
 
@@ -49,7 +49,7 @@ import middleware from "@/middleware";
 function createMockRequest(path: string, authData: any = null, headers: Record<string, string> = {}) {
   const url = `http://localhost${path}`;
   const req = new NextRequest(url, { headers });
-  (req as any).auth = authData;
+  authMock.mockResolvedValue(authData);
   return req;
 }
 
@@ -64,18 +64,16 @@ describe("Middleware", () => {
     expect(intlMiddlewareMock).toHaveBeenCalled();
   });
 
-  it("should redirect unauthorized users from /admin", async () => {
+  it("should return 404 rewrite for unauthorized users from /admin", async () => {
     const req = createMockRequest("/admin");
     const res = (await middleware(req, {} as any)) as NextResponse;
-    expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/api/auth/signin");
+    expect(res.headers.get("x-middleware-rewrite")).toContain("/404");
   });
 
-  it("should redirect non-admin users from /admin", async () => {
+  it("should return 404 rewrite for non-admin users from /admin", async () => {
     const req = createMockRequest("/admin", { user: { role: "USER", username: "alice" } });
     const res = (await middleware(req, {} as any)) as NextResponse;
-    expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toBe("http://localhost/");
+    expect(res.headers.get("x-middleware-rewrite")).toContain("/404");
   });
 
   it("should redirect users with no username to /onboarding", async () => {
@@ -93,7 +91,7 @@ describe("Middleware", () => {
   });
 
   it("should handle X-Forwarded-Host", async () => {
-    const req = createMockRequest("/admin", null, { "x-forwarded-host": "tunnel.com", "x-forwarded-proto": "https" });
+    const req = createMockRequest("/pregame", null, { "x-forwarded-host": "tunnel.com", "x-forwarded-proto": "https" });
     const res = (await middleware(req, {} as any)) as NextResponse;
     expect(res.headers.get("location")).toContain("https://tunnel.com/api/auth/signin");
   });
@@ -106,9 +104,8 @@ describe("Middleware", () => {
   });
 
   it("should redirect unauth users from /pregame", async () => {
-    // authMock passes req through. We simulate unauth by passing req.auth = null
+    authMock.mockResolvedValue(null);
     const req = new NextRequest("http://localhost/pregame/123");
-    Object.assign(req, { auth: null });
     
     // @ts-ignore
     const res = await middleware(req);
