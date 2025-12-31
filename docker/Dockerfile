@@ -69,4 +69,9 @@ ENV HOSTNAME="0.0.0.0"
 # Default DATABASE_URL for docker (can be overridden)
 ENV DATABASE_URL="file:/app/data/db.sqlite"
 
+# Copy entrypoint script
+COPY --chown=nextjs:nodejs docker/entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x docker-entrypoint.sh
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["npm", "start"]

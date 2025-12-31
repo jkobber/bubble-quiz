@@ -1,0 +1,18 @@
+services:
+  bubble-quiz:
+    image: ghcr.io/somecodecat/bubble-quiz:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: bubble-quiz
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../data:/app/data
+      - ../backups:/app/backups
+    # Environment variables are loaded from the env_file specified in the command
+    # or by default from .env if present.
+    # We recommend running with: --env-file docker/prod.env
+    env_file:
+      - ./prod.env

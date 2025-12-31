@@ -41,46 +41,42 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 - Docker and Docker Compose installed on your machine.
 
-### Running with Docker Compose
+### Running with Pre-built Image (Production)
 
-1.  **Clone the repository:**
+1.  **Navigate to the docker folder:**
 
     ```bash
-    git clone https://github.com/yourusername/bubble-quiz.git
-    cd bubble-quiz
+    cd docker
     ```
 
-2.  **Configure Environment Variables:**
-    The `docker-compose.yml` file comes with default environment variables. For production, you should update `NEXTAUTH_SECRET` and other provider secrets.
+2.  **Configure Environment:**
+    Copy or edit the `prod.env` file. You **MUST** change `AUTH_SECRET` and set `AUTH_URL` for production usage.
+    
+    ```bash
+    # Edit the file
+    nano prod.env
+    ```
 
-    You can create a `.env` file or modify `docker-compose.yml` directly.
-
-3.  **Run the container (Build from source):**
+3.  **Run the container:**
 
     ```bash
-    docker-compose up -d
+    docker compose --env-file prod.env up -d
     ```
 
     The application will be available at `http://localhost:3000`.
-    The SQLite database will be persisted in the `./data` directory.
+    Data will be persisted in `../data` (relative to the docker folder).
 
-### Running with Pre-built Image (Production)
+### Building Manually
 
-If you want to run the application using the pre-built image from GitHub Container Registry without building it locally:
-
-1.  **Use the production compose file:**
-
-    Edit `docker-compose.prod.yml` and replace `your_github_username` with your actual username.
-
-    ```bash
-    docker-compose -f docker-compose.prod.yml up -d
-    ```
-
-### Building the Docker Image Manually
+If you prefer to build from source:
 
 ```bash
-docker build -t bubble-quiz .
-docker run -p 3000:3000 -v $(pwd)/data:/app/data -e DATABASE_URL="file:/app/data/db.sqlite" bubble-quiz
+# From the root directory
+docker build -f docker/Dockerfile -t bubble-quiz .
+docker run -p 3000:3000 \
+  -v $(pwd)/data:/app/data \
+  --env-file docker/prod.env \
+  bubble-quiz
 ```
 
 ### GitHub Actions
