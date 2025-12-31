@@ -1,5 +1,5 @@
 FROM node:20-alpine AS base
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl su-exec
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -59,7 +59,7 @@ RUN mkdir -p /app/data /app/backups && chown nextjs:nodejs /app/data /app/backup
 # Ensure /tmp exists and is writable (fix for tsx in alpine)
 RUN mkdir -p /tmp && chmod 1777 /tmp
 
-USER nextjs
+
 
 EXPOSE 3000
 
