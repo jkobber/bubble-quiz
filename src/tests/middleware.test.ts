@@ -44,7 +44,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 // The middleware itself
-import middleware from "@/middleware";
+import middleware from "@/proxy";
 
 function createMockRequest(path: string, authData: any = null, headers: Record<string, string> = {}) {
   const url = `http://localhost${path}`;

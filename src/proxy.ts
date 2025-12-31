@@ -6,6 +6,19 @@ import { routing } from "./i18n/routing";
 const intlMiddleware = createMiddleware(routing);
 
 export default async function middleware(req: NextRequest) {
+  // Proxy-aware URL handling
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+
+  if (forwardedHost || forwardedProto) {
+    const url = new URL(req.url);
+    if (forwardedHost) url.host = forwardedHost;
+    if (forwardedProto) url.protocol = forwardedProto;
+
+    // Clone request with updated URL to ensure next-intl and other logic sees the correct public URL
+    req = new NextRequest(url, req);
+  }
+
   const session = await auth();
   const isAuth = !!session?.user;
   (req as any).auth = session; // Polyfill for existing logic validation
@@ -16,30 +29,22 @@ export default async function middleware(req: NextRequest) {
   const isRegisterRoute = req.nextUrl.pathname.includes("/register");
   const isApiAuthRoute = req.nextUrl.pathname.includes("/api/auth");
 
-  // Helper to construct URL respecting X-Forwarded-Host
-  const getRedirectUrl = (path: string) => {
-    const url = req.nextUrl.clone();
-    url.pathname = path;
-    url.search = ""; // Clear search params by default
+  // Debug logging
+  // console.log(`[Middleware] ${req.method} ${req.nextUrl.pathname} (Auth: ${isAuth})`);
 
-    const forwardedHost =
-      req.headers.get("x-forwarded-host") || req.headers.get("x-original-host");
-    const forwardedProto = req.headers.get("x-forwarded-proto");
+  // Helper using standard URL constructor which inherits protocol/host from req.url
+  const getRedirectUrl = (path: string) => new URL(path, req.url);
 
-    if (forwardedHost) {
-      url.host = forwardedHost;
-    }
-    if (forwardedProto) {
-      url.protocol = forwardedProto;
-    }
-
-    return url;
-  };
+  // Redirect root to lobby immediately
+  if (req.nextUrl.pathname === "/") {
+    return NextResponse.redirect(getRedirectUrl("/lobby"));
+  }
 
   // Redirect logged-in users away from auth pages
   if (isAuth) {
     const user = (req as any).auth?.user;
     if (isRegisterRoute || (isOnboardingRoute && user?.username)) {
+      // console.log(`[Middleware] Redirecting Register/Onboarding -> /lobby`);
       return NextResponse.redirect(getRedirectUrl("/lobby"));
     }
   }
@@ -65,6 +70,7 @@ export default async function middleware(req: NextRequest) {
     const user = (req as any).auth?.user;
     // Note: user.username comes from JWT callback in auth.ts
     if (!user?.username) {
+      // console.log(`[Middleware] Missing Username -> /onboarding`);
       return NextResponse.redirect(getRedirectUrl("/onboarding"));
     }
   }

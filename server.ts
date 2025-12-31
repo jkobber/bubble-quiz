@@ -86,8 +86,8 @@ app.prepare().then(() => {
       logger.error(err);
       process.exit(1);
     })
-    .listen(port, () => {
-      logger.info(`> Backend Ready on http://${hostname}:${port}`);
+    .listen(port, "0.0.0.0", () => {
+      logger.info(`> Backend Ready on http://0.0.0.0:${port}`);
     });
 
   // Graceful Shutdown
