@@ -23,7 +23,15 @@ export default async function EditQuestionPage({ params }: Props) {
   }
 
   const question = await db.question.findUnique({
-    where: { id }
+    where: { id },
+    include: {
+      tags: {
+        include: { tag: true }, // -> question.tags is [{ tag: { name } }, ...]
+      },
+      collections: {
+        include: { collection: true }, // optional: falls du Checkboxen für Collections anzeigen willst
+      },
+    },
   });
 
   if (!question) notFound();
@@ -50,6 +58,16 @@ export default async function EditQuestionPage({ params }: Props) {
     orderBy: { timestamp: 'desc' }
   });
 
+  const initialData = {
+    id: question.id,
+    text: question.text,
+    options: JSON.parse(question.options),
+    correctIndex: question.correctIndex,
+    category: question.category ?? undefined,
+    tags: question.tags?.map((t: any) => t.tag?.name).filter(Boolean) ?? [],
+    collectionIds: question.collections?.map((c: any) => c.collection?.id).filter(Boolean) ?? [],
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground p-8 flex justify-center">
       <div className="w-full max-w-2xl space-y-8">
@@ -69,15 +87,11 @@ export default async function EditQuestionPage({ params }: Props) {
           </CardHeader>
           <CardContent>
             <QuestionForm 
-              initialData={{
-                  id: question.id,
-                  text: question.text,
-                  options: JSON.parse(question.options),
-                  correctIndex: question.correctIndex
-              }}
+              initialData={initialData}
               onSubmit={updateQuestion} 
               title="Edit Question"
               submitLabel="Save Changes"
+              availableCollections={question.collections?.map((c: any) => ({ id: c.collection.id, name: c.collection.name })) ?? []}
             />
           </CardContent>
         </Card>
